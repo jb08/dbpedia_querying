@@ -64,6 +64,29 @@ class App(tk.Frame):
 			if row > r and row < self.numQueries: #hacky, but this was staying on screen 
 				label.grid_forget()
 
+	def clarifyResults(self,  res):
+		"""
+		Should create a pop up window with radio buttions so user can specify which book 
+		they were refering to
+		"""
+		self.newWin = tk.Toplevel(self)
+		self.newWin.grid()
+		title = tk.Label(self.newWin, text="Multiple results for your search. Please select one.")
+		title.grid(row = 0)
+		#Radio Buttons
+		self.v = tk.IntVar()
+		self.v.set(1)
+		for key in res:
+			(title, author) = res[key]
+			display = title + ", " +author
+			b = tk.Radiobutton(self.newWin, text=display, variable=self.v, value=key)
+			b.grid(row=key, sticky =tk.W)
+			#print key
+
+		submit = tk.Button(self.newWin, text="Submit", command=submitSelect)
+		submit.grid(row=key+1)
+
+		#newFrame.tkraise()
 
 	def displayResults(self, res):
 		"""
@@ -93,15 +116,39 @@ class App(tk.Frame):
 
 		#tkMessageBox.showinfo("Query Results:", result)
 
+def submitSelect():
+	"""
+	"""
+	print "submitted!"
+	print int(app.v.get())
+	app.newWin.destroy()
+
+
 def cleanInput(userInput):
 	"""
 	Fix user input.
 	"""
 	return titlecase(userInput.lower())
 
+def cleanResult(res):
+	"""
+	input: a string
+	Cleans the query variable results by removing the URI and underscores.
+	returns: a string
+	"""
+	if (res == ""):
+		return "[Nothing Found]"
+	#get rid of namespace
+	noNS = res[res.rfind("/")+1:]
+	final = " ".join(noNS.split("_")) #split on underscore and join with space in between
+	#print final
+	return final
+
 def cleanResults(res):
 	"""
-	Cleans the query variable results by removing the URI and underscores.
+	input: a list
+	Cleans the query variables list results by removing the URI and underscores, returning only the last one.
+	returns: a string
 	"""
 	if (res == []):
 		return "[Nothing Found]"
@@ -116,7 +163,9 @@ def cleanResults(res):
 
 def cleanResultsAll(res):
 	"""
-	Cleans the query variable results by removing the URI and underscores.
+	input: a list
+	Cleans the query variables list results by removing the URI and underscores.
+	returns: a list
 	"""
 	if (res == []):
 		return ["[Nothing Found]"]
@@ -150,17 +199,24 @@ def author_query():
 	authorResults = []
 
 	res = ""
-
+	pairedDict = {}
+	count = 1
 	for result in results["results"]["bindings"]:
 	    #res += (result["book"]["value"]) + "\n"
-	    bookResults.append(result["book"]["value"])
+	    bookName = cleanResult(result["book"]["value"])
+	    bookResults.append(bookName)
 	    #print "Book Title: " + result["book"]["value"]
-	    authorResults.append(result["author"]["value"])
+	    authorName = cleanResult(result["author"]["value"])
+	    authorResults.append(authorName)
+	    pairedDict[count] = (bookName, authorName)
+	    count+=1
 	    #print "Book's Author: " + result["author"]["value"]
 	    print
 
 	if (len(bookResults)>1):
-		tkMessageBox.showinfo("Error: Multiple Results ", "Please specify which book and re-search: \n \n"+ str(cleanResultsAll(bookResults)))
+		#tkMessageBox.showinfo("Error: Multiple Results ", "Please specify which book and re-search: \n \n"+ str(cleanResultsAll(bookResults)))
+		print pairedDict
+		app.clarifyResults(pairedDict)
 		return 
 
 	print cleanResultsAll(bookResults)
