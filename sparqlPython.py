@@ -71,6 +71,7 @@ class App(tk.Frame):
 		"""
 		queries = res["queries"]
 		bindings = res["results"]
+
 		row = 1
 		howMany = len(queries)
 
@@ -149,6 +150,7 @@ def author_query():
 	authorResults = []
 
 	res = ""
+
 	for result in results["results"]["bindings"]:
 	    #res += (result["book"]["value"]) + "\n"
 	    bookResults.append(result["book"]["value"])
@@ -157,6 +159,10 @@ def author_query():
 	    #print "Book's Author: " + result["author"]["value"]
 	    print
 
+	if (len(bookResults)>1):
+		tkMessageBox.showinfo("Error: Multiple Results ", "Please specify which book and re-search: \n \n"+ str(cleanResultsAll(bookResults)))
+		return 
+
 	print cleanResultsAll(bookResults)
 	print cleanResultsAll(authorResults)
 	#author_full = authorResults[-1]
@@ -164,6 +170,8 @@ def author_query():
 	#author.split("/")[-1] another way
 	d["queries"] += ["Author"]
 	d["results"] += [author]
+
+
 	
 	birthResults = []
 	query = "SELECT ?author ?town WHERE {?author dbp:name \""+ author+ "\"@en . ?author dbp:birthPlace ?town. }"
@@ -196,13 +204,18 @@ def genre_query():
 	"""
 	title = app.input1.get()
 	title = cleanInput(title)
-	query = "SELECT ?book ?genre WHERE {?book dbp:name \""+ title+ "\"@en . ?book dbp:genre ?genre. ?book dbp:publisher ?pub}"
-	#print "Query: " + query
+	query = """
+				SELECT ?book ?genre 
+				WHERE {?book dbp:name \"""" + title+ """\" @en. 
+					   ?book dbp:genre ?genre. 
+					   ?book dbp:publisher ?pub}
+			"""
+	print "Query: " + query
 	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
 	sparql.setQuery(query)
 	sparql.setReturnFormat(JSON)
 	results = sparql.query().convert()
-	#print results
+	print results
 
 	genre = "[book not found]"
 	genres = []
@@ -212,13 +225,12 @@ def genre_query():
 	    #print "Book Title: " + result["book"]["value"]
 	    genres += [result["genre"]["value"]]
 
-	genre = cleanResults(genres)
-
+	#genre = cleanResults(genres)
 	genres = cleanResultsAll(genres)
 	#print author
 	#author.split("/")[-1] another way
 	print ("Genres", genres)
-	display = genre
+	#display = genre
 	app.displayWidget(genres, "Genres");
 	#tkMessageBox.showinfo("Query Results", genres)
 
