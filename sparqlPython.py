@@ -6,6 +6,7 @@ from titlecase import titlecase
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 prop = {"author": "dbp:author", "genre": "dbp:genre", "country": "dbp:country", "title":"dbp:name", "pages":"dbp:pages", "publisher":"dbp:publisher", "subjects":"dct:subject", "similar":"rdfs:seeAlso"}
+labels = ["Title*", "","Find Author", "Find Genre", "Reset"]
 
 class App(tk.Frame):
 	def __init__(self, master = None):
@@ -34,10 +35,22 @@ class App(tk.Frame):
 		
 		self.b1 = tk.Button(self, text="Find Author", font=self.buttonFont, command=author_query)
 		self.b2 = tk.Button(self, text="Find Genre", font=self.buttonFont, command=genre_query)
+		self.b3 = tk.Button(self, text="Reset", font=self.buttonFont, command=reset_display)
 		
 		self.b1.grid(column=0, row=self.numQueries+1, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b2.grid(column=0, row=self.numQueries+2, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
+		self.b3.grid(column=0, row=self.numQueries+3, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
+	def resetWidget(self):
+		self.input1.delete(0, 'end')
+
+		for label in self.winfo_children():
+			text =  str(label["text"])
+			print str(label) + "--> " + text
+			if text not in labels:
+				#print "destroy:" + text +"->" + str(label)
+				label.destroy()
+			
 	def displayWidget(self, results, query_type):
 		#var = tk.StringVar()
 		#var.set(result)
@@ -143,6 +156,9 @@ def cleanResult(res):
 	final = " ".join(noNS.split("_")) #split on underscore and join with space in between
 	#print final
 	return final
+
+def reset_display():
+	app.resetWidget()
 
 def cleanResults(res):
 	"""
