@@ -333,11 +333,14 @@ def getAbstract(userChoice):
 			WHERE {?book rdfs:label \"""" + qInfo.title + """\"@en . 
 				   ?book dbo:abstract ?abstract . 
 				   ?book dbp:author ?author.
+				   ?book rdf:type dbo:Book .
 				   FILTER langMatches(lang(?abstract), 'en') . 
 				   }
 			"""
 	results = sendQuery(query)
 	cleanRes = extractResults(results, userChoice)
+
+	print results
 	if len(cleanRes) == 0:
 		abstract = "None Found"
 	else:
@@ -417,7 +420,10 @@ def extractResults(res, userChoice):
 		if (userChoice == "genre" or userChoice == "author"):
 			bookName = cleanResult(result["book"]["value"])
 
-		answer = cleanResult(result[userChoice]["value"])
+		if (userChoice != "abstract"):
+			answer = cleanResult(result[userChoice]["value"])
+		else:
+			answer = result[userChoice]["value"]
 		pairedDict[count] = (bookName, answer)
 		count+=1
 
