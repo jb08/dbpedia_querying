@@ -60,7 +60,7 @@ class App(tk.Frame):
 		self.columnconfigure(1,weight=3)
 
 		self.label1 = tk.Label(self, text="Title*", font=self.labelFont, anchor=tk.N+tk.W)
-		self.label1.grid(column=0, row=0)
+		self.label1.grid(column=0, row=0, sticky=tk.N+tk.W)
 		self.input1 = tk.Entry(self)
 		self.input1.grid(column=1,row=0, sticky=tk.E+tk.W)
 		
@@ -80,11 +80,13 @@ class App(tk.Frame):
 
 		self.b1 = tk.Button(self, text="Find Author", font=self.buttonFont, command=lambda: makeQuery(1))
 		self.b2 = tk.Button(self, text="Find Genre", font=self.buttonFont, command=lambda: makeQuery(2))
-		self.b3 = tk.Button(self, text="Reset", font=self.buttonFont, command=reset)
+		self.b4 = tk.Button(self, text="Reset", font=self.buttonFont, command=reset)
+		self.b3 = tk.Button(self, text="Read Abstract", font=self.buttonFont, command=lambda: makeQuery(3))
 
 		self.b1.grid(column=0, row=self.numQueries+1, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b2.grid(column=0, row=self.numQueries+2, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b3.grid(column=0, row=self.numQueries+3, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
+		self.b4.grid(column=0, row=self.numQueries+4, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
 	def clarifyResults(self,  res):
 		"""
@@ -119,6 +121,9 @@ class App(tk.Frame):
 		row = 1
 		howMany = len(queries)
 
+		#clear
+		self.clear(row, self.numQueries)
+
 		for i in range(howMany):
 			if (not isinstance(bindings[i], list)):
 				self.label1 = tk.Label(self, text=queries[i], font=self.labelFont)
@@ -143,9 +148,6 @@ class App(tk.Frame):
 					if text == "Birth Place": #hacky, but this was staying on screen 
 						label.destroy()
 
-		#remove any higher
-		self.clear(row, self.numQueries)
-
 	def clear(self, start, end):
 		"""
 		Clears widgets on rows froms start up to end
@@ -154,11 +156,11 @@ class App(tk.Frame):
 			if (int(widget.grid_info()["row"]) >= start and int(widget.grid_info()["row"]) < end ):
 				widget.grid_remove()
 
-	def userMessage(self, message):
+	def userMessage(self, title, message):
 		"""
 		Pop to give the user some information.
 		"""
-		tkMessageBox.showinfo("Message", message)
+		tkMessageBox.showinfo(title, message)
 
 
 
@@ -214,12 +216,10 @@ def findBook():
 	query = """
 		SELECT ?book ?author
 		WHERE {?book dbp:name \"""" + title + """\" @en. 
-			   ?book dbp:author ?author. }
+			   ?book dbp:author ?author.
+			   ?book rdf:type dbo:Book }
 		"""
-	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-	sparql.setQuery(query)
-	sparql.setReturnFormat(JSON)
-	results = sparql.query().convert()
+	results = sendQuery(query)
 
 	cleanResults = extractResults(results, "author")
 	qInfo.allResults = cleanResults
@@ -245,10 +245,7 @@ def queryRDFSLabel(title):
 		WHERE {?book rdfs:label \"""" + title + """\" @en. 
 			   ?book dbp:author ?author. }
 		"""
-	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-	sparql.setQuery(query)
-	sparql.setReturnFormat(JSON)
-	results = sparql.query().convert()
+	results = sendQuery(query)
 
 	cleanResults = extractResults(results, "author")
 	qInfo.allResults = cleanResults
@@ -262,7 +259,19 @@ def queryRDFSLabel(title):
 	elif len(cleanResults) > 1: #Multiple books found
 		app.clarifyResults(cleanResults)
 	else:
-		app.userMessage("Sorry, no books found. Please try another search.")
+		app.userMessage("No Book Found","Sorry, no books found. Please try another search.")
+
+def sendQuery(q):
+	"""
+	input: string query
+	Uses the sparql wrapper to send query to SPARQL endpoint
+	Outputs: results dictionary
+	"""
+	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
+	sparql.setQuery(q)
+	sparql.setReturnFormat(JSON)
+	results = sparql.query().convert()
+	return results
 
 def makeQuery(option):
 	"""
@@ -278,7 +287,11 @@ def makeQuery(option):
 		d["queries"] += ["Birth Place"]
 		d["results"] += [birthPlace]
 		qInfo.setBirthPlace(birthPlace)
-		#print birthPlace
+		
+		otherBooks = moreByAuthor()
+		d["queries"] += ["Also by Author"]
+		d["results"] += [otherBooks]
+
 		app.displayResults(d)
 
 	elif (option == 2):
@@ -290,10 +303,7 @@ def makeQuery(option):
 				   ?book dbp:author ?author}
 			"""
 		#print query
-		sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-		sparql.setQuery(query)
-		sparql.setReturnFormat(JSON)
-		results = sparql.query().convert()
+		results = sendQuery(query)
 
 		cleanResults = extractResults(results, userChoice) #returns a dictionary of pairings of the title either genre or author
 
@@ -309,6 +319,31 @@ def makeQuery(option):
 
 		qInfo.setGenres(listOfResults)
 		app.displayResults(d);  #still need to consolidate display
+
+	elif (option == 3):
+		userChoice="abstract"
+		getAbstract(userChoice);
+
+def getAbstract(userChoice):
+	"""
+	Displays a pop up window with the abstract of the user's selected book.
+	"""
+	query = """
+			SELECT ?book ?abstract
+			WHERE {?book rdfs:label \"""" + qInfo.title + """\"@en . 
+				   ?book dbo:abstract ?abstract . 
+				   ?book dbp:author ?author.
+				   FILTER langMatches(lang(?abstract), 'en') . 
+				   }
+			"""
+	results = sendQuery(query)
+	cleanRes = extractResults(results, userChoice)
+	if len(cleanRes) == 0:
+		abstract = "None Found"
+	else:
+		abstract = cleanRes[1][1]
+
+	app.userMessage(qInfo.title+ " Abstract", abstract)
 		
 def findAuthorBirthPlace():
 	"""
@@ -320,10 +355,8 @@ def findAuthorBirthPlace():
 			WHERE {?author dbp:name \""""+ qInfo.author + """\"@en . 
 			?author dbp:birthPlace ?town }
 			"""
-	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-	sparql.setQuery(query)
-	sparql.setReturnFormat(JSON)
-	results = sparql.query().convert()
+
+	results = sendQuery(query)
 	#print results
 	cleanResults = extractResults(results, "town")
 	places = []
@@ -338,6 +371,27 @@ def findAuthorBirthPlace():
 		return place
 	else:
 		return "Not Found"
+
+def moreByAuthor():
+	"""
+	Returns a list of other books by the same author
+	"""
+	query = """
+			SELECT distinct ?author ?books
+			WHERE {?author dbp:name \""""+ qInfo.author + """\"@en . 
+			?author dbo:notableWork ?books}
+			"""
+
+	results = sendQuery(query)
+	cleanRes = extractResults(results, "books")
+
+	books = []
+	for key in cleanRes:
+		books += [cleanRes[key][1]]
+
+	if len(books) == 0:
+		return "None Found"
+	return books
 
 def determineIfDifferent(places):
 	"""
