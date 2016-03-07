@@ -5,9 +5,6 @@ import urllib
 from titlecase import titlecase
 from SPARQLWrapper import SPARQLWrapper, JSON
 
-#bug: "The Lord of the Rings - read Abstract - title bar "JRR Influences...""
-#bug: "Num_Pages query not working"
-
 prop = {"author": "dbp:author", "genre": "dbp:genre", "country": "dbp:country", "title":"dbp:name", "pages":"dbp:pages", "publisher":"dbp:publisher", "subjects":"dct:subject", "similar":"rdfs:seeAlso"}
 
 class QueryInfo:
@@ -351,7 +348,6 @@ def getAbstract(userChoice):
 				   }
 			"""
 	results = sendQuery(query)
-	print results
 	cleanRes = extractResults(results, userChoice)
 
 	if len(cleanRes) == 0:
@@ -378,14 +374,13 @@ def getNumPages(userChoice):
 				   }
 			"""
 	results = sendQuery(query)
-	print results
 	cleanRes = extractResults(results, userChoice)
 
 	pages_per_min = 2.0
 	if len(cleanRes) == 0:
-		#num_pages = "None Found"
-		temp_page_num = 1296
-		num_pages = "There are " + str(temp_page_num) + " pages in " + qInfo.title + ". Based on the average adult reading speed, this may take you "+ str(int(float(temp_page_num)*pages_per_min/60)) + " hours."
+		num_pages = "None Found"
+		#temp_page_num = 1296
+		#num_pages = "There are " + str(temp_page_num) + " pages in " + qInfo.title + ". Based on the average adult reading speed, this may take you "+ str(int(float(temp_page_num)*pages_per_min/60)) + " hours."
 
 	else:
 		num_pages = cleanRes[1][1]
