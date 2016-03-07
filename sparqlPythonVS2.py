@@ -5,6 +5,9 @@ import urllib
 from titlecase import titlecase
 from SPARQLWrapper import SPARQLWrapper, JSON
 
+#bug: "The Lord of the Rings - read Abstract - title bar "JRR Influences...""
+#bug: "Num_Pages query not working"
+
 prop = {"author": "dbp:author", "genre": "dbp:genre", "country": "dbp:country", "title":"dbp:name", "pages":"dbp:pages", "publisher":"dbp:publisher", "subjects":"dct:subject", "similar":"rdfs:seeAlso"}
 
 class QueryInfo:
@@ -66,6 +69,10 @@ class App(tk.Frame):
 		
 		self.b = tk.Button(self, text="Find Book", font=self.buttonFont, command=findBook)
 		self.b.grid(column=0, row=1, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
+
+		#self.how_to_label = tk.Label(self, text="*Once a specific book is found, then additional options will appear!", font=self.labelFont, anchor=tk.N+tk.W)
+		#self.how_to_label.grid(column=0, row=3, sticky=tk.N+tk.W)
+
 		#clear any old stuff
 		self.clear(2,float("inf"))
 
@@ -80,13 +87,15 @@ class App(tk.Frame):
 
 		self.b1 = tk.Button(self, text="Find Author", font=self.buttonFont, command=lambda: makeQuery(1))
 		self.b2 = tk.Button(self, text="Find Genre", font=self.buttonFont, command=lambda: makeQuery(2))
-		self.b4 = tk.Button(self, text="Reset", font=self.buttonFont, command=reset)
 		self.b3 = tk.Button(self, text="Read Abstract", font=self.buttonFont, command=lambda: makeQuery(3))
+		self.b4 = tk.Button(self, text="Pages", font=self.buttonFont, command=lambda: makeQuery(4))
+		self.b5 = tk.Button(self, text="Reset", font=self.buttonFont, command=reset)
 
 		self.b1.grid(column=0, row=self.numQueries+1, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b2.grid(column=0, row=self.numQueries+2, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b3.grid(column=0, row=self.numQueries+3, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b4.grid(column=0, row=self.numQueries+4, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
+		self.b5.grid(column=0, row=self.numQueries+5, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
 	def clarifyResults(self,  res):
 		"""
@@ -259,7 +268,7 @@ def queryRDFSLabel(title):
 	elif len(cleanResults) > 1: #Multiple books found
 		app.clarifyResults(cleanResults)
 	else:
-		app.userMessage("No Book Found","Sorry, no books found. Please try another search.")
+		app.userMessage("No Book Found","Sorry, no books found with that specific title. Please try another search.")
 
 def sendQuery(q):
 	"""
@@ -324,6 +333,10 @@ def makeQuery(option):
 		userChoice="abstract"
 		getAbstract(userChoice);
 
+	elif (option == 4):
+		userChoice="pages"
+		getNumPages(userChoice);		
+
 def getAbstract(userChoice):
 	"""
 	Displays a pop up window with the abstract of the user's selected book.
@@ -338,6 +351,7 @@ def getAbstract(userChoice):
 				   }
 			"""
 	results = sendQuery(query)
+	print results
 	cleanRes = extractResults(results, userChoice)
 
 	if len(cleanRes) == 0:
@@ -346,6 +360,38 @@ def getAbstract(userChoice):
 		abstract = cleanRes[1][1]
 
 	app.userMessage(qInfo.title+ " Abstract", abstract)
+
+
+def getNumPages(userChoice):
+
+	#buggy - not working xsd:integer ?
+
+	"""
+	Displays a pop up window with the number of pages of the user's selected book.
+	"""
+	query = """
+			SELECT ?book ?pages
+			WHERE {?book rdfs:label \"""" + qInfo.title + """\"@en . 
+				   ?book dbp:pages ?pages . 
+				   ?book dbp:author ?author.
+				   ?book rdf:type dbo:Book .
+				   FILTER langMatches(lang(?abstract), 'en') . 
+				   }
+			"""
+	results = sendQuery(query)
+	print results
+	cleanRes = extractResults(results, userChoice)
+
+	if len(cleanRes) == 0:
+		#num_pages = "None Found"
+		temp_page_num = 1296
+		pages_per_min = 2.0
+		num_pages = "There are " + str(temp_page_num) + " pages in " + qInfo.title + ". Based on the average adult reading speed, this may take you "+ str(int(float(temp_page_num)*pages_per_min/60)) + " hours."
+
+	else:
+		num_pages = cleanRes[1][1]
+
+	app.userMessage(qInfo.title+ " Pages", num_pages)
 		
 def findAuthorBirthPlace():
 	"""
