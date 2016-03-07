@@ -340,7 +340,6 @@ def getAbstract(userChoice):
 	results = sendQuery(query)
 	cleanRes = extractResults(results, userChoice)
 
-	print results
 	if len(cleanRes) == 0:
 		abstract = "None Found"
 	else:
