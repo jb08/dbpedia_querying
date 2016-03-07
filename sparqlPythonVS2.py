@@ -375,21 +375,22 @@ def getNumPages(userChoice):
 				   ?book dbp:pages ?pages . 
 				   ?book dbp:author ?author.
 				   ?book rdf:type dbo:Book .
-				   FILTER langMatches(lang(?abstract), 'en') . 
 				   }
 			"""
 	results = sendQuery(query)
 	print results
 	cleanRes = extractResults(results, userChoice)
 
+	pages_per_min = 2.0
 	if len(cleanRes) == 0:
 		#num_pages = "None Found"
 		temp_page_num = 1296
-		pages_per_min = 2.0
 		num_pages = "There are " + str(temp_page_num) + " pages in " + qInfo.title + ". Based on the average adult reading speed, this may take you "+ str(int(float(temp_page_num)*pages_per_min/60)) + " hours."
 
 	else:
 		num_pages = cleanRes[1][1]
+		num_pages = "There are " + str(num_pages) + " pages in " + qInfo.title + ". Based on the average adult reading speed, this may take you "+ str(int(float(num_pages)*pages_per_min/60)) + " hours to read."
+		
 
 	app.userMessage(qInfo.title+ " Pages", num_pages)
 		
