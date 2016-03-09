@@ -1,8 +1,9 @@
 import Tkinter as tk
 import tkMessageBox
 import tkFont
-import urllib
+import string
 from titlecase import titlecase
+import webbrowser
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 
@@ -55,7 +56,7 @@ class App(tk.Frame):
 
 	def createWidget(self):
 		top = self.winfo_toplevel()
-		top.geometry('275x400')
+		top.geometry('250x400')
 		top.rowconfigure(0,weight=1)
 		top.columnconfigure(0,weight=1)
 		self.columnconfigure(0,weight=1)
@@ -69,7 +70,7 @@ class App(tk.Frame):
 		self.input1 = tk.Entry(self)
 		self.input1.grid(column=1,row=0, sticky=tk.E+tk.W)
 		
-		self.b = tk.Button(self, text="Find Book", font=self.buttonFont, command=findBook)
+		self.b = tk.Button(self, text="Identify Book", font=self.buttonFont, command=findBook,  bg = "#009933")
 		self.b.grid(column=0, row=1, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
 		#self.how_to_label = tk.Label(self, text="*Once a specific book is found, then additional options will appear!", font=self.labelFont, anchor=tk.N+tk.W)
@@ -91,13 +92,17 @@ class App(tk.Frame):
 		self.b2 = tk.Button(self, text="Find Genre", font=self.buttonFont, command=lambda: makeQuery(2))
 		self.b3 = tk.Button(self, text="Read Abstract", font=self.buttonFont, command=lambda: makeQuery(3))
 		self.b4 = tk.Button(self, text="Pages", font=self.buttonFont, command=lambda: makeQuery(4))
-		self.b5 = tk.Button(self, text="Reset", font=self.buttonFont, command=reset)
+		self.b5 = tk.Button(self, text="Similar Books", font=self.buttonFont, command=lambda: makeQuery(5))
+		self.b6 = tk.Button(self, text="Buy", font=self.buttonFont, command=lambda: makeQuery(6))
+		self.b7 = tk.Button(self, text="Reset", font=self.buttonFont, command=reset, bg="#ff5050")
 
 		self.b1.grid(column=0, row=self.numQueries+1, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b2.grid(column=0, row=self.numQueries+2, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b3.grid(column=0, row=self.numQueries+3, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b4.grid(column=0, row=self.numQueries+4, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 		self.b5.grid(column=0, row=self.numQueries+5, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
+		self.b6.grid(column=0, row=self.numQueries+6, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
+		self.b7.grid(column=0, row=self.numQueries+7, columnspan=2, sticky=tk.S)
 
 	def clarifyResults(self,  res):
 		"""
@@ -223,7 +228,6 @@ def findBook():
 	"""Does DBpedia have the book the user is looking for?
 	"""
 	title = cleanInput(app.input1.get()) # get and clean user input
-	print "User title input: " + title
 	query = """
 		SELECT ?book ?author
 		WHERE {?book dbp:name \"""" + title + """\" @en. 
@@ -232,14 +236,10 @@ def findBook():
 		"""
 	results = sendQuery(query)
 
-	print results
-	print
 	cleanResults = extractResults(results, "author")
 	qInfo.allResults = cleanResults
 
-	print cleanResults
 	if len(cleanResults) == 1: # Just one book found
-		print "Successful"
 		qInfo.setTitle(cleanResults[1][0]) #might as well save title and author
 		qInfo.setAuthor(cleanResults[1][1])
 		app.displayOptions()
@@ -265,7 +265,6 @@ def queryRDFSLabel(title):
 	qInfo.allResults = cleanResults
 
 	if len(cleanResults) == 1: # Just one book found
-		print "Successful"
 		qInfo.setTitle(cleanResults[1][0]) #might as well save title and author
 		qInfo.setAuthor(cleanResults[1][1])
 		app.displayOptions()
@@ -303,8 +302,9 @@ def makeQuery(option):
 		qInfo.setBirthPlace(birthPlace)
 		
 		otherBooks = moreByAuthor()
-		d["queries"] += ["Also by Author"]
-		d["results"] += [otherBooks]
+		if(len(otherBooks)!= 0):
+			d["queries"] += ["Also by Author"]
+			d["results"] += [otherBooks]
 
 		app.displayResults(d)
 
@@ -316,7 +316,6 @@ def makeQuery(option):
 				   ?book dbp:genre ?genre. 
 				   ?book dbp:author ?author}
 			"""
-		#print query
 		results = sendQuery(query)
 
 		cleanResults = extractResults(results, userChoice) #returns a dictionary of pairings of the title either genre or author
@@ -332,15 +331,21 @@ def makeQuery(option):
 		d["results"] = [listOfResults]
 
 		qInfo.setGenres(listOfResults)
-		app.displayResults(d);  #still need to consolidate display
+		app.displayResults(d)
 
 	elif (option == 3):
 		userChoice="abstract"
-		getAbstract(userChoice);
+		getAbstract(userChoice)
 
 	elif (option == 4):
 		userChoice="pages"
-		getNumPages(userChoice);		
+		getNumPages(userChoice)
+
+	elif (option == 5):
+		userChoice = "";
+		getSimilarBooks();
+	elif (option == 6):
+		buyBook();
 
 def getAbstract(userChoice):
 	"""
@@ -364,6 +369,10 @@ def getAbstract(userChoice):
 
 	app.userMessage(qInfo.title+ " Abstract", abstract)
 
+def buyBook():
+		book_name = qInfo.title
+		webbrowser.open("http://www.barnesandnoble.com/s/"+ book_name)
+
 def getNumPages(userChoice):
 	"""
 	Displays a pop up window with the number of pages of the user's selected book.
@@ -381,16 +390,74 @@ def getNumPages(userChoice):
 	pages_per_min = 2.0
 	if len(cleanRes) == 0:
 		num_pages = "None Found"
-		#temp_page_num = 1296
-		#num_pages = "There are " + str(temp_page_num) + " pages in " + qInfo.title + ". Based on the average adult reading speed, this may take you "+ str(int(float(temp_page_num)*pages_per_min/60)) + " hours."
-
 	else:
 		num_pages = cleanRes[1][1]
 		num_pages = "There are " + str(num_pages) + " pages in " + qInfo.title + ". Based on the average adult reading speed, this may take you "+ str(int(float(num_pages)*pages_per_min/60)) + " hours to read."
 		
 
 	app.userMessage(qInfo.title+ " Pages", num_pages)
-		
+
+def getSimilarBooks():
+	"""
+	Gives the user a list of books that they may be interested given the book the searched.
+	"""
+	litGenres =  getLiteraryGenres()
+
+	genres = []
+	for book in litGenres["results"]["bindings"]:
+		genres += [book["genre"]["value"]]
+
+	is_first = True
+
+	if len(genres) ==0:
+		app.userMessage("Similar Books ", "Sorry no books found. \n We were unable to find other books in this genre. \n See other books by this author.")
+		return
+
+	dResults = {}
+	disp = ""
+	for genre in genres:
+		gen = string.replace(genre, "http://dbpedia.org/resource/", "dbr:")
+		dResults[gen] = []
+
+		query = """
+				SELECT DISTINCT ?book ?author
+				WHERE {
+					   ?book dbo:literaryGenre ?genre . 
+					   ?book dbp:author ?author.
+					   FILTER (?genre = """+ gen +""" ) 
+					   }
+
+				LIMIT 5
+				"""
+
+		results = sendQuery(query)
+		cleanResults = extractResults(results, "author")
+
+		cleanGenreName = gen.split(":")[-1]
+		if(not is_first):
+			disp += '\n'
+		else:
+			is_first = False
+
+		disp += cleanGenreName +'\n'
+		for key in cleanResults:
+			dResults[gen] += [cleanResults[key][0]]
+			disp += '    ' +cleanResults[key][0] + ' By ' + cleanResults[key][1] + '\n'
+
+	app.userMessage("Similar Books ", disp)
+
+
+def getLiteraryGenres():
+	"""Returns the unclean dictionary of all results for the query """
+	query = """
+			SELECT ?book ?genre
+			WHERE {?book rdfs:label \"""" + qInfo.title + """\" @en. 
+				   ?book dbo:literaryGenre ?genre. 
+				   ?book dbp:author ?author}
+			"""
+	results = sendQuery(query)
+	return results
+
 def findAuthorBirthPlace():
 	"""
 	input: string
@@ -403,13 +470,11 @@ def findAuthorBirthPlace():
 			"""
 
 	results = sendQuery(query)
-	#print results
 	cleanResults = extractResults(results, "town")
 	places = []
 	for key in cleanResults:
 		places += [cleanResults[key][1]]
 
-	#print ("places", places)
 	if len(places) == 1:
 		return places[0]
 	elif len(places) > 1:
@@ -435,8 +500,6 @@ def moreByAuthor():
 	for key in cleanRes:
 		books += [cleanRes[key][1]]
 
-	if len(books) == 0:
-		return "None Found"
 	return books
 
 def determineIfDifferent(places):
@@ -477,7 +540,7 @@ app = App()
 qInfo = QueryInfo()
 
 def main():
-	app.master.title('Query DBpedia')
+	app.master.title('Search')
 	app.mainloop()
 
 if __name__ == "__main__":
