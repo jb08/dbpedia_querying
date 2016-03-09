@@ -6,7 +6,6 @@ from titlecase import titlecase
 import webbrowser
 from SPARQLWrapper import SPARQLWrapper, JSON
 
-
 class QueryInfo:
 	def __init__(self, title=""):
 		"""
@@ -178,7 +177,8 @@ class App(tk.Frame):
 		"""
 		Pop to give the user some information.
 		"""
-		tkMessageBox.showinfo(title, message)
+		#my_font = tkFont.Font(family="Helvetica",size=12,weight="normal")
+		tkMessageBox.showinfo(title, message = " ", detail = message)
 
 def reset():
 	"""
@@ -442,10 +442,13 @@ def getSimilarBooks():
 		disp += cleanGenreName +'\n'
 		for key in cleanResults:
 			dResults[gen] += [cleanResults[key][0]]
-			disp += '    ' +cleanResults[key][0] + ' By ' + cleanResults[key][1] + '\n'
+			full = '    ' +cleanResults[key][0] + ' By ' + cleanResults[key][1] + '\n' 
+			shortened = full[:50]
+			if(shortened != full):
+				shortened += "... \n"
+			disp += shortened
 
 	app.userMessage("Similar Books ", disp)
-
 
 def getLiteraryGenres():
 	"""Returns the unclean dictionary of all results for the query """
