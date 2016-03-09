@@ -1,0 +1,13 @@
+The app launches by running the python script bookRecommender.py.
+
+If you receive an error message, you may need to pip install two Python modules: i) SPARQLWrapper, and ii) titlecase.
+
+Demo: https://vimeo.com/158404158
+Github: github.com/jb08/dbpedia_querying
+
+team:
+- Amulya Angajala
+- Jason Brown
+- Rosio Macedo-Rodriguez
+
+Let us know if there are any tech setup issues.
