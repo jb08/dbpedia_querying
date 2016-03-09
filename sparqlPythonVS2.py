@@ -5,7 +5,6 @@ import urllib
 from titlecase import titlecase
 from SPARQLWrapper import SPARQLWrapper, JSON
 
-prop = {"author": "dbp:author", "genre": "dbp:genre", "country": "dbp:country", "title":"dbp:name", "pages":"dbp:pages", "publisher":"dbp:publisher", "subjects":"dct:subject", "similar":"rdfs:seeAlso"}
 
 class QueryInfo:
 	def __init__(self, title=""):
@@ -38,6 +37,12 @@ class QueryInfo:
 		self.author=""
 		self.authorBirthPlace=""
 		self.genres=[]
+
+	def __str__(self):
+		return """
+				Title: """ + self.title +"""\n
+				Author: """ + self.author + """\n
+				Genres: """ + str(self.genres) + """\n"""
 
 class App(tk.Frame):
 	def __init__(self, master = None):
@@ -105,11 +110,13 @@ class App(tk.Frame):
 		title.grid(row = 0)
 		#Radio Buttons
 		self.v = tk.StringVar()
-		self.v.set(res[1][1]) #set the default to be the first author
+		disp = "Title:"+res[1][0] + ":Author:"+res[1][1]
+		self.v.set(disp) #set the default to be the first entry
 		for key in res:
 			(title, author) = res[key]
+			val = "Title:"+title + ":Author:"+ author
 			display = title + ", " +author
-			b = tk.Radiobutton(self.newWin, text=display, variable=self.v, value=author)
+			b = tk.Radiobutton(self.newWin, text=display, variable=self.v, value=val)
 			b.grid(row=key, sticky =tk.W)
 
 		submit = tk.Button(self.newWin, text="Submit", command=submitSelect)
@@ -168,9 +175,6 @@ class App(tk.Frame):
 		"""
 		tkMessageBox.showinfo(title, message)
 
-
-
-
 def reset():
 	"""
 	Takes users back to the homepage to look for another book.
@@ -188,11 +192,12 @@ def submitSelect():
 	Sets the author and title in qInfo (which is keeping track of query result)
 	"""
 	app.newWin.destroy()
-	selectedBookAuthor = app.v.get()
-	for book in qInfo.allResults:
-		if qInfo.allResults[book][1] == selectedBookAuthor:
-			qInfo.setTitle(qInfo.allResults[book][0])
-	qInfo.setAuthor(selectedBookAuthor)
+	selectedBook= app.v.get()
+	author = selectedBook.split(':')[-1]
+	title = selectedBook.split(':')[1]
+
+	qInfo.setAuthor(author)
+	qInfo.setTitle(title)
 
 def cleanInput(userInput):
 	"""
@@ -218,18 +223,21 @@ def findBook():
 	"""Does DBpedia have the book the user is looking for?
 	"""
 	title = cleanInput(app.input1.get()) # get and clean user input
-	
+	print "User title input: " + title
 	query = """
 		SELECT ?book ?author
 		WHERE {?book dbp:name \"""" + title + """\" @en. 
 			   ?book dbp:author ?author.
-			   ?book rdf:type dbo:Book }
+			   }
 		"""
 	results = sendQuery(query)
 
+	print results
+	print
 	cleanResults = extractResults(results, "author")
 	qInfo.allResults = cleanResults
 
+	print cleanResults
 	if len(cleanResults) == 1: # Just one book found
 		print "Successful"
 		qInfo.setTitle(cleanResults[1][0]) #might as well save title and author
@@ -343,7 +351,6 @@ def getAbstract(userChoice):
 			WHERE {?book rdfs:label \"""" + qInfo.title + """\"@en . 
 				   ?book dbo:abstract ?abstract . 
 				   ?book dbp:author ?author.
-				   ?book rdf:type dbo:Book .
 				   FILTER langMatches(lang(?abstract), 'en') . 
 				   }
 			"""
@@ -357,11 +364,7 @@ def getAbstract(userChoice):
 
 	app.userMessage(qInfo.title+ " Abstract", abstract)
 
-
 def getNumPages(userChoice):
-
-	#buggy - not working xsd:integer ?
-
 	"""
 	Displays a pop up window with the number of pages of the user's selected book.
 	"""
@@ -370,7 +373,6 @@ def getNumPages(userChoice):
 			WHERE {?book rdfs:label \"""" + qInfo.title + """\"@en . 
 				   ?book dbp:pages ?pages . 
 				   ?book dbp:author ?author.
-				   ?book rdf:type dbo:Book .
 				   }
 			"""
 	results = sendQuery(query)
@@ -470,221 +472,13 @@ def extractResults(res, userChoice):
 
 	return pairedDict
 
-
-
-
-####################################### OLD STUFF FOR REFERENCE ############################
-
-	def displayWidget(self, results, query_type):
-		#var = tk.StringVar()
-		#var.set(result)
-		howMany = len(results)
-
-		self.authorLabel = tk.Label(self, text=query_type, font=self.labelFont, anchor=tk.W)
-		self.authorLabel.grid(column=0, row=1)
-		r = 0
-		for i in range(howMany):
-			#self.disp = tk.Message(self, textvariable=var, anchor = tk.W)
-			self.disp = tk.Label(self, text=results[i], anchor = tk.W)
-			self.disp.grid(column=1, row=i+1, sticky=tk.N+tk.S+tk.E+tk.W)
-			i+=1
-			r = i
-
-		#remove any higher
-		for label in self.winfo_children():
-			text =  str(label["text"])
-			if text == "Birth Place": #hacky, but this was staying on screen 
-				label.destroy()
-
-		self.clear(r+1, self.numQueries)
-
-
-def cleanResults(res):
-	"""
-	input: a list
-	Cleans the query variables list results by removing the URI and underscores, returning only the last one.
-	returns: a string
-	"""
-	if (res == []):
-		return "[Nothing Found]"
-	final = []
-	#get rid of namespace
-	for item in res:
-		noNS = item[item.rfind("/")+1:]
-		final += [" ".join(noNS.split("_"))] #split on underscore and join with space in between
-
-	#print final
-	return final[-1]
-
-def cleanResultsAll(res):
-	"""
-	input: a list
-	Cleans the query variables list results by removing the URI and underscores.
-	returns: a list
-	"""
-	if (res == []):
-		return ["[Nothing Found]"]
-	final = []
-	#get rid of namespace
-	for item in res:
-		noNS = item[item.rfind("/")+1:]
-		final += [" ".join(noNS.split("_"))] #split on underscore and join with space in between
-
-	#print final
-	return list(set(final))
-
-
-def author_query():
-	"""
-	"""
-	d = {}
-	d["results"] = []
-	d["queries"] = []
-
-	title = cleanInput(app.input1.get())
-
-	query = "SELECT ?book ?author WHERE {?book dbp:name \""+ title+ "\"@en . ?book dbp:author ?author. }"
-	#print "Query: " + query
-	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-	sparql.setQuery(query)
-	sparql.setReturnFormat(JSON)
-	results = sparql.query().convert()
-	#print results
-	author = "[book not found]"
-	bookResults = []
-	authorResults = []
-
-	res = ""
-	pairedDict = {}
-	count = 1
-	for result in results["results"]["bindings"]:
-	    #res += (result["book"]["value"]) + "\n"
-	    bookName = cleanResult(result["book"]["value"])
-	    bookResults.append(bookName)
-	    #print "Book Title: " + result["book"]["value"]
-	    authorName = cleanResult(result["author"]["value"])
-	    authorResults.append(authorName)
-	    pairedDict[count] = (bookName, authorName)
-	    count+=1
-	    #print "Book's Author: " + result["author"]["value"]
-	    print
-
-	if (len(bookResults)>1):
-		#tkMessageBox.showinfo("Error: Multiple Results ", "Please specify which book and re-search: \n \n"+ str(cleanResultsAll(bookResults)))
-		print pairedDict
-		app.clarifyResults(pairedDict)
-		print app.v.get()
-		return 
-
-	print cleanResultsAll(bookResults)
-	print cleanResultsAll(authorResults)
-	#author_full = authorResults[-1]
-	author = cleanResults(authorResults)
-	#author.split("/")[-1] another way
-	d["queries"] += ["Author"]
-	d["results"] += [author]
-	
-	birthResults = []
-	query = "SELECT ?author ?town WHERE {?author dbp:name \""+ author+ "\"@en . ?author dbp:birthPlace ?town. }"
-
-	#print "Query: " + query
-	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-	sparql.setQuery(query)
-	sparql.setReturnFormat(JSON)
-	results = sparql.query().convert()
-	#print results
-
-	for result in results["results"]["bindings"]:
-	    birthResults.append(result["town"]["value"])
-	    print
-
-	birthPlace = "[No Hometown]"
-	birthPlace = cleanResults(birthResults)
-
-	#author = "[book not found]"
-	d["queries"] += ["Birth Place"]
-	d["results"] += [birthPlace]
-
-	#res = ""
-	app.displayResults(d);
-	#tkMessageBox.showinfo("Query Results", res)
-
-def queryBirthPlace(author):
-	"""
-	Once the uer has selected a book. Find's that authors birth place
-	"""
-	d ={}
-	d["queries"] = ["Author"]
-	d["results"] = [author]
-
-	birthResults = []
-	query = "SELECT ?author ?town WHERE {?author dbp:name \""+ author+ "\"@en . ?author dbp:birthPlace ?town. }"
-
-	#print "Query: " + query
-	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-	sparql.setQuery(query)
-	sparql.setReturnFormat(JSON)
-	results = sparql.query().convert()
-	#print results
-
-	for result in results["results"]["bindings"]:
-	    birthResults.append(result["town"]["value"])
-	    print
-
-	birthPlace = "[No Hometown]"
-	birthPlace = cleanResults(birthResults)
-
-	#author = "[book not found]"
-	d["queries"] += ["Birth Place"]
-	d["results"] += [birthPlace]
-
-	#res = ""
-	app.displayResults(d);
-	
-
-def genre_query():
-	"""
-	"""
-	title = app.input1.get()
-	title = cleanInput(title)
-	qInfo.setTitle(title)
-
-	query = """
-				SELECT ?book ?genre 
-				WHERE {?book dbp:name \"""" + title+ """\" @en. 
-					   ?book dbp:genre ?genre. 
-					   ?book dbp:publisher ?pub}
-			"""
-	print "Query: " + query
-	sparql = SPARQLWrapper("http://dbpedia.org/sparql")
-	sparql.setQuery(query)
-	sparql.setReturnFormat(JSON)
-	results = sparql.query().convert()
-	print results
-
-	genre = "[book not found]"
-	genres = []
-	res = ""
-	for result in results["results"]["bindings"]:
-	    res += (result["book"]["value"]) + "\n"
-	    #print "Book Title: " + result["book"]["value"]
-	    genres += [result["genre"]["value"]]
-
-	#genre = cleanResults(genres)
-	genres = cleanResultsAll(genres)
-	#print author
-	#author.split("/")[-1] another way
-	print ("Genres", genres)
-	#display = genre
-	app.displayWidget(genres, "Genres");
-	#tkMessageBox.showinfo("Query Results", genres)
-
-###########################################################################################
-
-#main --->
-author = ""
+#global variables:
 app = App()
 qInfo = QueryInfo()
-app.master.title('Query DBpedia')
-app.mainloop()
-#print author_result
+
+def main():
+	app.master.title('Query DBpedia')
+	app.mainloop()
+
+if __name__ == "__main__":
+	main()
